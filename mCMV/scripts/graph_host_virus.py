@@ -18,7 +18,7 @@ os.environ['SINGLET_CONFIG_FILENAME'] = 'singlet.yml'
 sys.path.append('/home/fabio/university/postdoc/singlet')
 from singlet.dataset import Dataset, CountsTable, SampleSheet, FeatureSheet
 
-from viscamy.filenames import get_count_filenames
+from mCMV.filenames import get_count_filenames
 
 
 

@@ -23,9 +23,9 @@ from singlet.dataset import Dataset, CountsTable, SampleSheet, FeatureSheet
 # Script
 if __name__ == '__main__':
 
-    from viscamy.filenames import get_count_filenames
-    from viscamy.io import read_dataframe
-    from viscamy.counts_table import CountsTableSparse
+    from mCMV.filenames import get_count_filenames
+    from mCMV.io import read_dataframe
+    from mCMV.counts_table import CountsTableSparse
 
     pa = argparse.ArgumentParser(description='Process some integers.')
     pa.add_argument('--samples', nargs='+', type=int,

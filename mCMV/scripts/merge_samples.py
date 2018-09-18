@@ -22,8 +22,8 @@ from singlet.dataset import Dataset, CountsTable, SampleSheet, FeatureSheet
 # Script
 if __name__ == '__main__':
 
-    from viscamy.filenames import get_count_filenames
-    from viscamy.io import read_dataframe
+    from mCMV.filenames import get_count_filenames
+    from mCMV.io import read_dataframe
 
     expname = 'mouse_mCMV_1'
     samplenames = [
