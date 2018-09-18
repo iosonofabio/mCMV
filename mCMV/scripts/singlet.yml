@@ -1,0 +1,38 @@
+io:
+ samplesheets:
+  combined_all:
+   description: 'Initial 8 samples'
+   path: '../../data/mouse_mCMV_1/all/samplesheet.tsv'
+   format: tsv
+   index: 0
+  combined:
+   description: 'Initial 8 samples, quality filtered'
+   path: '../../data/mouse_mCMV_1/all/samplesheet_genes1010_samples3.tsv'
+   format: tsv
+   index: name
+ featuresheets:
+  combined_all:
+   description: 'Initial 8 samples'
+   path: '../../data/mouse_mCMV_1/feature_metadata.tsv'
+   format: tsv
+   index: 0
+  combined:
+   description: 'Initial 8 samples, quality filtered'
+   path: '../../data/mouse_mCMV_1/feature_metadata_genes1010_samples3.tsv'
+   format: tsv
+   index: Gene
+ count_tables:
+  combined_all:
+   description: 'Initial 8 samples'
+   path: '../../data/mouse_mCMV_1/all/dataframe.tsv.gz'
+   format: 'tsv.gz'
+   index: Gene
+   cells: columns
+   normalized: count_fractions
+  combined:
+   description: 'Initial 8 samples, quality filtered'
+   path: '../../data/mouse_mCMV_1/all/counts_genes1010_samples3.tsv.gz'
+   format: 'tsv.gz'
+   index: Gene
+   cells: columns
+   normalized: counts_per_million
