@@ -34,44 +34,6 @@ if __name__ == '__main__':
                     help='Keep sample 2-uninfected despite low quality')
     args = pa.parse_args()
 
-    expname = 'mouse_mCMV_1'
-    samplename = 'all'
-
-    #print('Read counts table')
-    #fn = get_count_filenames(expname, samplename, fmt='dataframe')
-    #counts = CountsTable(1e6 * pd.read_csv(
-    #    fn,
-    #    sep='\t',
-    #    index_col=0,
-    #    dtype={0: str},
-    #    ))
-    #counts._normalized = 'counts_per_million'
-
-    #print('Read gene metadata')
-    #fn = '../../data/mouse_mCMV_1/feature_metadata.tsv'
-    #featuresheet = FeatureSheet(pd.read_csv(
-    #    fn,
-    #    sep='\t',
-    #    index_col=0,
-    #    dtype={0: str},
-    #    ))
-
-    #print('Read sample metadata')
-    #fn = '../../data/mouse_mCMV_1/all/samplesheet.tsv'
-    #samplesheet = SampleSheet(pd.read_csv(
-    #    fn,
-    #    sep='\t',
-    #    index_col=0,
-    #    dtype={0: str},
-    #    ))
-
-    #print('Build dataset')
-    #ds = Dataset(
-    #        counts_table=counts,
-    #        featuresheet=featuresheet,
-    #        samplesheet=samplesheet,
-    #        )
-
     print('Load dataset')
     ds = Dataset(
             counts_table='combined',
@@ -114,34 +76,88 @@ if __name__ == '__main__':
     ds.featuresheet['meanExp'] = ds.counts.mean(axis=1)
 
     print('Correlate number of virus reads with gene expression')
-    corr = ds.correlation.correlate_features_phenotypes(phenotypes=['virus_reads_per_million'], method='spearman')
-    corr.rename(columns={'virus_reads_per_million': 'rho'}, inplace=True)
-    ds.featuresheet.loc[:, 'rho'] = corr.loc[:, 'rho']
-    for ng in (20, 50, 100):
-        top = ds.featuresheet.query('Organism == "mouse"').nlargest(ng, columns=['rho']).index
-        with open('../../data/mouse_mCMV_1/results/host_correlations_top{:}.txt'.format(ng), 'wt') as f:
-            f.write('\n'.join(top))
-        bot = ds.featuresheet.query('Organism == "mouse"').nsmallest(ng, columns=['rho']).index
-        with open('../../data/mouse_mCMV_1/results/host_correlations_bottom{:}.txt'.format(ng), 'wt') as f:
-            f.write('\n'.join(bot))
-    print(' '.join(top[:10]))
-    print(' '.join(bot[:10]))
-
-    print('Correlate only in infected cultures')
+    rn = {'spearman': 'rho', 'pearson': 'R', 'pearson-log': 'logR'}
     dsi = ds.query_samples_by_metadata('moi in ("low", "high")', inplace=False)
-    dsi.featuresheet['meanExp'] = dsi.counts.mean(axis=1)
-    corri = dsi.correlation.correlate_features_phenotypes(phenotypes=['virus_reads_per_million'], method='spearman')
-    corri.rename(columns={'virus_reads_per_million': 'rho'}, inplace=True)
-    dsi.featuresheet.loc[:, 'rho'] = corri.loc[:, 'rho']
-    for ng in (20, 50, 100):
-        top = dsi.featuresheet.query('Organism == "mouse"').nlargest(ng, columns=['rho']).index
-        with open('../../data/mouse_mCMV_1/results/host_correlations_infected_top{:}.txt'.format(ng), 'wt') as f:
-            f.write('\n'.join(top))
-        bot = dsi.featuresheet.query('Organism == "mouse"').nsmallest(ng, columns=['rho']).index
-        with open('../../data/mouse_mCMV_1/results/host_correlations_infected_bottom{:}.txt'.format(ng), 'wt') as f:
-            f.write('\n'.join(bot))
-    print(' '.join(top[:10]))
-    print(' '.join(bot[:10]))
+    for method in ('pearson-log', ):#('spearman', 'pearson'):
+        if method == 'pearson-log':
+            ds.counts.log(inplace=True)
+        mee = method.split('-')[0]
+        corr = ds.correlation.correlate_features_phenotypes(phenotypes=['virus_reads_per_million'], method=mee)
+        corr.rename(columns={'virus_reads_per_million': rn[method]}, inplace=True)
+        ds.featuresheet.loc[:, rn[method]] = corr.loc[:, rn[method]]
+        for ng in (20, 50, 100):
+            top = ds.featuresheet.query('Organism == "mouse"').nlargest(ng, columns=[rn[method]]).index
+            bot = ds.featuresheet.query('Organism == "mouse"').nsmallest(ng, columns=[rn[method]]).index
+            if args.save:
+                with open('../../data/mouse_mCMV_1/results/host_correlations_top{:}.txt'.format(ng), 'wt') as f:
+                    f.write('\n'.join(top))
+                with open('../../data/mouse_mCMV_1/results/host_correlations_bottom{:}.txt'.format(ng), 'wt') as f:
+                    f.write('\n'.join(bot))
+            else:
+                break
+        print('{:} {:}, all cells'.format(method.capitalize(), rn[method]))
+        print('TOP +:', ' '.join(top[:10]))
+        print('BOT -:', ' '.join(bot[:10]))
+        if method == 'pearson-log':
+            ds.counts.unlog(inplace=True)
+
+        print('Correlate only in infected cultures')
+        if method == 'pearson-log':
+            dsi.counts.log(inplace=True)
+        dsi.featuresheet['meanExp'] = dsi.counts.mean(axis=1)
+        corri = dsi.correlation.correlate_features_phenotypes(phenotypes=['virus_reads_per_million'], method=mee)
+        corri.rename(columns={'virus_reads_per_million': rn[method]}, inplace=True)
+        dsi.featuresheet.loc[:, rn[method]] = corri.loc[:, rn[method]]
+        for ng in (20, 50, 100):
+            top = dsi.featuresheet.query('Organism == "mouse"').nlargest(ng, columns=[rn[method]]).index
+            bot = dsi.featuresheet.query('Organism == "mouse"').nsmallest(ng, columns=[rn[method]]).index
+            if args.save:
+                with open('../../data/mouse_mCMV_1/results/host_correlations_infected_top{:}.txt'.format(ng), 'wt') as f:
+                    f.write('\n'.join(top))
+                with open('../../data/mouse_mCMV_1/results/host_correlations_infected_bottom{:}.txt'.format(ng), 'wt') as f:
+                    f.write('\n'.join(bot))
+            else:
+                break
+        if method == 'pearson-log':
+            dsi.counts.unlog(inplace=True)
+        print('{:} {:}, infecteds cultures'.format(method.capitalize(), rn[method]))
+        print('TOP +:', ' '.join(top[:10]))
+        print('BOT -:', ' '.join(bot[:10]))
+        print()
+
+
+    print('Look at virus genes expression')
+    dsv = dsi.query_features_by_metadata('Organism == "mCMV"')
+    n_cells_expressed = (dsv.counts >= 3).sum(axis=1)
+    # plot
+    fig, ax = plt.subplots(1, 1, figsize=(3, 2))
+    x = 0.1 + n_cells_expressed.sort_values()
+    y = 1.0 - np.linspace(0, 1, len(x))
+    ax.scatter(x, y, s=15, color='steelblue')
+    ax.set_xlabel('# cells with >= 3 cpm')
+    ax.set_ylabel('cumulative')
+    ax.grid(True)
+    ax.set_ylim(-0.02, 1.02)
+    ax.set_xlim(0.09, x.values.max() + 1)
+    ax.set_xscale('log')
+    plt.tight_layout()
+    plt.ion()
+    plt.show()
+
+    print('What cells express rare viral transcripts?')
+    from scipy.stats import percentileofscore
+    viral_genes_low_expressed = n_cells_expressed.sort_values()[:20].index
+    for gene in viral_genes_low_expressed:
+        expressing_cells = dsv.counts.columns[dsv.counts.loc[gene] >= 3]
+        if not len(expressing_cells):
+            print(gene, 'no cells')
+            continue
+        n_viral_reads_cells = dsv.samplesheet.loc[expressing_cells, 'log_virus_reads_per_million'].values
+        n_viral_all = dsv.samplesheet['log_virus_reads_per_million'].values
+        percentiles = [percentileofscore(n_viral_all, x) for x in n_viral_reads_cells]
+        #print(gene, ' '.join(['{:.1f}'.format(x) for x in np.sort(n_viral_reads_cells)]))
+        print(gene, ' '.join(['{:.0f}%'.format(x) for x in np.sort(percentiles)]))
+
 
     print('Check cell cycle')
     genes_cc = [
@@ -182,6 +198,26 @@ if __name__ == '__main__':
         'Birc5',
         ]
     dscc = ds.query_features_by_name(genes_cc2, inplace=False)
+    dscc.counts.log(inplace=True)
+    vsu = dscc.dimensionality.umap()
+    fig, axs = plt.subplots(2, 4, sharex=True, sharey=True, figsize=(9, 5))
+    genes_plot = ['log_virus_reads_per_million', 'Ccne2', 'Ccnd1', 'Ccnb1']
+    for icol, gene in enumerate(genes_plot):
+        ax = axs[0][icol]
+        dscc.plot.scatter_reduced_samples(vsu, color_by=gene, alpha=0.4, ax=ax, s=10)
+        ax.set_title(gene)
+        ax.set_axis_off()
+        ax = axs[1][icol]
+        if gene in dscc.counts.index:
+            th = dscc.counts.loc[gene].quantile([0.7]).values[0]
+            x, y = vsu.loc[dscc.counts.loc[gene] >= th].values.T
+        else:
+            x, y = vsu.loc[dscc.samplesheet[gene] >= 2.5].values.T
+        sns.kdeplot(x, y, shade=True, cmap="Purples", ax=ax)
+        ax.set_axis_off()
+    plt.tight_layout(w_pad=0)
+    plt.ion()
+    plt.show()
 
     sys.exit()
 
